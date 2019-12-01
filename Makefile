@@ -9,5 +9,8 @@ all: $(ALL)
 codec:	$(OBJS)
 	$(CC) $(CFLAGS) -o codec $(OBJS)
 
+countline:
+	wc -l *.c *.h Makefile
+
 clean:
 	rm -f $(OBJS) $(ALL)
