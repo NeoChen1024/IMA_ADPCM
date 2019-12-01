@@ -37,26 +37,30 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include "adpcm.h"
+#include "riff.h"
+#include "common.h"
+#include "codec.h"
 
 int main(int argc, char **argv)
 {
-	int count = 0;
 	int16_t pcm = 0;
 	uint8_t adsmp = 0;
+	STATE* encoder_state = state_init(0, 0, 7);
+	STATE* decoder_state = state_init(0, 0, 7);
 
-	while(fread(&pcm, sizeof(pcm), 1, stdin) != 0)
+	argparse(argc, argv);
+
+	switch(mode)
 	{
-		if((count & 0x1) == 0)
-		{
-			adsmp = adpcm_encode(pcm, &state);
-		}
-		else
-		{
-			adsmp <<= 4;
-			adsmp |= adpcm_encode(pcm, &state);
-			fwrite(&adsmp, sizeof(adsmp), 1, stdout);
-		}
-		count++;
+		case MODE_TEST_THROUGH:
+			while(fread(&pcm, sizeof(pcm), 1, infile) != 0)
+			{
+				pcm = adpcm_decode(adpcm_encode(pcm, encoder_state), decoder_state);
+				fwrite(&pcm, sizeof(pcm), 1, outfile);
+			}
+			break;
+		case MODE_ENCODE:
+		case MODE_DECODE:
+			panic("Not Implemented");
 	}
-	return 0;
 }

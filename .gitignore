@@ -1,4 +1,3 @@
 testdata
 *.o
-rawencode
-rawdecode
+codec

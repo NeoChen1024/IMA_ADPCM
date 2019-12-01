@@ -1,13 +1,13 @@
 CC=	clang
 # Alternative computation method
 ALT=	-DALT
-CFLAGS=	-O2 -march=native -gdwarf-5 -gfull -flto -fPIE -fPIC -pipe -Wall -Wextra -ansi -std=c99 -pedantic $(ALT)
-OBJS=	adpcm.o rawencode.o
-ALL=	adpcm.o	rawencode
+CFLAGS=	-Ofast -march=native -gdwarf-5 -g3 -flto -fPIE -fPIC -pipe -Wall -Wextra -std=c89 -pedantic $(ALT)
+OBJS=	adpcm.o codec.o common.o riff.o arg.o
+ALL=	codec
 all: $(ALL)
 
-rawencode:	$(OBJS)
-	$(CC) $(CFLAGS) -o rawencode $(OBJS)
+codec:	$(OBJS)
+	$(CC) $(CFLAGS) -o codec $(OBJS)
 
 clean:
-	rm -f $(LIBOBJS) $(ALL)
+	rm -f $(OBJS) $(ALL)

@@ -38,6 +38,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include "adpcm.h"
+#include "common.h"
 
 
 int8_t i_table[16] = {-1, -1, -1, -1, 2, 4, 6, 8,
@@ -54,13 +55,6 @@ int16_t ss_table[89] = {7, 8, 9, 10, 11, 12, 13, 14,
 	13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794,
 	32767};
 
-struct codec_state state =
-{
-	.ps = 0,
-	.i = 0,
-	.ss = 7
-};
-
 void clip(int *value, int min, int max)
 {
 	if(*value > max)
@@ -69,12 +63,12 @@ void clip(int *value, int min, int max)
 		*value = min;
 }
 
-uint8_t adpcm_encode(int16_t in, struct codec_state *st)
+uint8_t adpcm_encode(int16_t in, STATE *st)
 {
 	uint8_t s=0;	/* The 4 Bit ADPCM sample to return */
 	int diff = in - st->ps;
 
-#ifndef FP
+#ifndef ALT
 	int i=0;
 	uint8_t mask=4;
 	int temp = st->ss;
@@ -86,9 +80,11 @@ uint8_t adpcm_encode(int16_t in, struct codec_state *st)
 		diff = -diff;
 	}
 
-	/* Calculate the sample */
-#ifdef FP
-	s = (uint8_t)((float)diff / (float)st->ss);
+	/* Calculate the sample:
+		Sample = 4 * Difference / StepSize
+	*/
+#ifdef ALT
+	s |= ((diff<<2) / st->ss) & 0x7;
 #else
 	for(i=0; i < 3; i++)
 	{
@@ -102,12 +98,13 @@ uint8_t adpcm_encode(int16_t in, struct codec_state *st)
 	}
 #endif
 
-	/* Difference = (OriginalSample + 0.5) * StepSize / 4 */
-#ifdef FP
-	diff = (int)(((float)in + 0.5) * (float)st->ss / 4.0);
+	/* Calculate the difference:
+		Difference = (OriginalSample + 0.5) * StepSize / 4
+	*/
+#ifdef ALT
+	diff = ((s & 0x7) * st->ss >> 2) + ((s & 0x7) * st->ss >> 3);
 #else
-	diff = 0;
-	if(s & (1<<2))	diff += st->ss;
+	if(s & (1<<2))	diff = st->ss;
 	if(s & (1<<1))	diff += st->ss >> 1;
 	if(s & 1)	diff += st->ss >> 2;
 	diff += st->ss >> 3;
@@ -123,12 +120,18 @@ uint8_t adpcm_encode(int16_t in, struct codec_state *st)
 	return s;
 }
 
-int16_t adpcm_decode(uint8_t s, struct codec_state *st)
+int16_t adpcm_decode(uint8_t s, STATE *st)
 {
 	int pcm=0; /* 16 Bit signed PCM to return */
 	int diff=0;
-	/* Difference = (OriginalSample + 0.5) * StepSize / 4 */
-	diff = (s*st->ss >>2) + (s*st->ss >>3);
+#ifdef ALT
+	diff = ((s & 0x7) * st->ss >> 2) + ((s & 0x7) * st->ss >> 3);
+#else
+	if(s & (1<<2))	diff = st->ss;
+	if(s & (1<<1))	diff += st->ss >> 1;
+	if(s & 1)	diff += st->ss >> 2;
+	diff += st->ss >> 3;
+#endif
 	if(s & 0x8)	/* Test for sign bit */
 		diff = -diff;
 	pcm += diff;
@@ -139,9 +142,17 @@ int16_t adpcm_decode(uint8_t s, struct codec_state *st)
 	return (int16_t)pcm;
 }
 
-void state_reset(struct codec_state *st)
+STATE *state_init(int predsmp, int index, int stepsize)
 {
-	st->ps = 0;
-	st->i = 0;
-	st->ss = 7;
+	STATE *state = calloc(1, sizeof(struct codec_state));
+	state->ps = predsmp;
+	state->i = index;
+	state->ss = stepsize;
+
+	return state;
+}
+
+void state_free(STATE *st)
+{
+	free(st);
 }
