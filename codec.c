@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <fcntl.h>
+#include <endian.h>
 #include "adpcm.h"
 #include "riff.h"
 #include "common.h"
@@ -59,9 +60,11 @@ int main(int argc, char **argv)
 		case MODE_TEST_THROUGH:
 			while(fread(&pcmin, sizeof(pcmin), 1, infile) != 0)
 			{
+				pcmin = le16toh(pcmin);
 				pcmout = adpcm_decode_sample(adpcm_encode_sample(pcmin, encoder_state), decoder_state);
 				if(verbose >= 2)
 					fprintf(stderr, "PCM IN = %10hd, PCM OUT = %10hd\n", pcmin, pcmout);
+				pcmout = htole16(pcmout);
 				fwrite(&pcmout, sizeof(pcmout), 1, outfile);
 				count++;
 			}
@@ -77,6 +80,20 @@ int main(int argc, char **argv)
 			}
 			break;
 		case MODE_ENCODE:
+			while(fread(&pcmin, sizeof(pcmin), 1, infile))
+			{
+				count++;
+				pcmin = le16toh(pcmin);
+				if(count & 0x1)
+				{
+					adsmp = adpcm_encode_sample(pcmin, decoder_state);
+				}
+				else
+				{
+					adsmp |= adpcm_encode_sample(pcmin, decoder_state) << 4;
+					fwrite(&adsmp, sizeof(adsmp), 1, outfile);
+				}
+			}
 		default:
 			panic("Not Implemented");
 	}
