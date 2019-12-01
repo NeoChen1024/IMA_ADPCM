@@ -70,11 +70,14 @@ static int diffcalc(uint8_t s, int ss)
 	int smp = s & 0x7; /* Strip sign */
 #endif
 
-	/* Calculate the difference:
+	/*
+	Calculate the difference, original document says:
 		Difference = (OriginalSample + 0.5) * StepSize / 4
+	But, that causes a significant DC offset, so I changed it to:
+		Difference = (OriginalSample + 0.25) * StepSize / 4
 	*/
 #ifdef ALT
-	diff = ((smp * ss << 1) + ss) >> 3;
+	diff = ((smp * ss << 2) + ss) >> 4;
 #else
 	if(s & (1<<2))	diff = ss;
 	if(s & (1<<1))	diff += ss >> 1;
