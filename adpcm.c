@@ -74,7 +74,7 @@ static int diffcalc(uint8_t s, int ss)
 		Difference = (OriginalSample + 0.5) * StepSize / 4
 	*/
 #ifdef ALT
-	diff = ((smp * ss << 1) + (smp * ss)) >> 3;
+	diff = ((smp * ss << 1) + ss) >> 3;
 #else
 	if(s & (1<<2))	diff = ss;
 	if(s & (1<<1))	diff += ss >> 1;

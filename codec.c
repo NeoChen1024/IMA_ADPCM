@@ -77,6 +77,7 @@ int main(int argc, char **argv)
 			}
 			break;
 		case MODE_ENCODE:
+		default:
 			panic("Not Implemented");
 	}
 
