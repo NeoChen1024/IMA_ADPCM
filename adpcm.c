@@ -72,12 +72,23 @@ static int diffcalc(uint8_t s, int ss)
 
 	/*
 	Calculate the difference, original document says:
+
 		Difference = (OriginalSample + 0.5) * StepSize / 4
+
 	But, that causes a significant DC offset, so I changed it to:
+
 		Difference = (OriginalSample + 0.25) * StepSize / 4
+
+	Then, after a brief moment, I looked FFmpeg's encoding code......
+	I just realized that 0.5 doesn't need to be there......, so,
+	Here's our working formula:
+
+		Difference = OriginalSample * StepSize / 4
+	
+	Sometimes, document lies......
 	*/
 #ifdef ALT
-	diff = ((smp * ss << 2) + ss) >> 4;
+	diff = smp * ss >> 2;
 #else
 	if(s & (1<<2))	diff = ss;
 	if(s & (1<<1))	diff += ss >> 1;
@@ -102,11 +113,8 @@ uint8_t adpcm_encode_sample(int16_t in, STATE *st)
 #endif
 
 	if(diff < 0)
-	{
 		s = 1<<3;
-		diff = -diff;
-	}
-
+	diff = abs(diff);
 	/* Calculate the sample:
 		Sample = 4 * Difference / StepSize
 	*/
