@@ -71,7 +71,8 @@ static int diffcalc(uint8_t s, int ss)
 #endif
 
 	/*
-	Calculate the difference, original document says:
+	Calculate the difference, the original IMA document, "Recommended Practices
+	for Enhancing Digital Audio Compatibility in Multimedia Systems", says:
 
 		Difference = (OriginalSample + 0.5) * StepSize / 4
 
