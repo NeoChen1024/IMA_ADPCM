@@ -52,7 +52,7 @@ void argparse(int argc, char **argv)
 	infile=stdin;
 	outfile=stdout;
 
-	while((opt = getopt(argc, argv, "hm:i:o:")) != -1)
+	while((opt = getopt(argc, argv, "hvm:i:o:")) != -1)
 	{
 		switch(opt)
 		{
@@ -65,8 +65,12 @@ void argparse(int argc, char **argv)
 			case 'm':	/* Mode */
 				mode_set(optarg);
 				break;
+			case 'v':
+				verbose++;
+				break;
 			default:
 				fputs("Invaild option\n", stderr);
+				/* Fall through as intended */
 			case 'h':	/* Help */
 				fputs(helptext, stderr);
 				exit(0);

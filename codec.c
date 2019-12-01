@@ -41,10 +41,14 @@
 #include "common.h"
 #include "codec.h"
 
+int verbose=0;
+
 int main(int argc, char **argv)
 {
-	int16_t pcm = 0;
+	int16_t pcmin = 0;
+	int16_t pcmout=0;
 	uint8_t adsmp = 0;
+	size_t count=0;
 	STATE* encoder_state = state_init(0, 0, 7);
 	STATE* decoder_state = state_init(0, 0, 7);
 
@@ -53,14 +57,28 @@ int main(int argc, char **argv)
 	switch(mode)
 	{
 		case MODE_TEST_THROUGH:
-			while(fread(&pcm, sizeof(pcm), 1, infile) != 0)
+			while(fread(&pcmin, sizeof(pcmin), 1, infile) != 0)
 			{
-				pcm = adpcm_decode(adpcm_encode(pcm, encoder_state), decoder_state);
-				fwrite(&pcm, sizeof(pcm), 1, outfile);
+				pcmout = adpcm_decode_sample(adpcm_encode_sample(pcmin, encoder_state), decoder_state);
+				if(verbose >= 2)
+					fprintf(stderr, "PCM IN = %10hd, PCM OUT = %10hd\n", pcmin, pcmout);
+				fwrite(&pcmout, sizeof(pcmout), 1, outfile);
+				count++;
+			}
+			break;
+		case MODE_DECODE:
+			while(fread(&adsmp, sizeof(adsmp), 1, infile) != 0)
+			{
+				pcmout = adpcm_decode_sample(adsmp & 0x7, decoder_state);
+				fwrite(&pcmout, sizeof(pcmout), 1, outfile);
+				pcmout = adpcm_decode_sample(adsmp >> 4, decoder_state);
+				fwrite(&pcmout, sizeof(pcmout), 1, outfile);
+				count++;
 			}
 			break;
 		case MODE_ENCODE:
-		case MODE_DECODE:
 			panic("Not Implemented");
 	}
+
+	return 0;
 }

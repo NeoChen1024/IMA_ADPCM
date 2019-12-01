@@ -10,4 +10,5 @@
 #include <getopt.h>
 #include <fcntl.h>
 
+extern int verbose;
 extern void panic(char *str);

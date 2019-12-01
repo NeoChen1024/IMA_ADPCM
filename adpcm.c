@@ -41,11 +41,11 @@
 #include "common.h"
 
 
-int8_t i_table[16] = {-1, -1, -1, -1, 2, 4, 6, 8,
+static int8_t i_table[16] = {-1, -1, -1, -1, 2, 4, 6, 8,
 		-1, -1, -1, -1, 2, 4, 6, 8};
 
 /* quantizer lookup table */
-int16_t ss_table[89] = {7, 8, 9, 10, 11, 12, 13, 14,
+static int16_t ss_table[89] = {7, 8, 9, 10, 11, 12, 13, 14,
 	16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60,
 	66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209,
 	230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658,
@@ -55,7 +55,7 @@ int16_t ss_table[89] = {7, 8, 9, 10, 11, 12, 13, 14,
 	13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794,
 	32767};
 
-void clip(int *value, int min, int max)
+static void clamp(int *value, int min, int max)
 {
 	if(*value > max)
 		*value = max;
@@ -63,7 +63,31 @@ void clip(int *value, int min, int max)
 		*value = min;
 }
 
-uint8_t adpcm_encode(int16_t in, STATE *st)
+static int diffcalc(uint8_t s, int ss)
+{
+	int diff=0;
+#ifdef ALT
+	int smp = s & 0x7; /* Strip sign */
+#endif
+
+	/* Calculate the difference:
+		Difference = (OriginalSample + 0.5) * StepSize / 4
+	*/
+#ifdef ALT
+	diff = ((smp * ss << 1) + (smp * ss)) >> 3;
+#else
+	if(s & (1<<2))	diff = ss;
+	if(s & (1<<1))	diff += ss >> 1;
+	if(s & 1)	diff += ss >> 2;
+	diff += ss >> 3;
+#endif
+	if(s & 0x8)	/* Is negative */
+		return -diff;
+	else
+		return diff;
+}
+
+uint8_t adpcm_encode_sample(int16_t in, STATE *st)
 {
 	uint8_t s=0;	/* The 4 Bit ADPCM sample to return */
 	int diff = in - st->ps;
@@ -97,47 +121,21 @@ uint8_t adpcm_encode(int16_t in, STATE *st)
 		mask >>= 1;
 	}
 #endif
-
-	/* Calculate the difference:
-		Difference = (OriginalSample + 0.5) * StepSize / 4
-	*/
-#ifdef ALT
-	diff = ((s & 0x7) * st->ss >> 2) + ((s & 0x7) * st->ss >> 3);
-#else
-	if(s & (1<<2))	diff = st->ss;
-	if(s & (1<<1))	diff += st->ss >> 1;
-	if(s & 1)	diff += st->ss >> 2;
-	diff += st->ss >> 3;
-#endif
-	if(s & 0x8)	/* Test for sign bit */
-		diff = -diff;
-	/* Update Predicted Sample */
-	st->ps += diff;
-	clip(&st->ps, -32768, 32767);
+	st->ps += diffcalc(s, st->ss);	/* Update Predicted Sample */
+	clamp(&st->ps, -32768, 32767);
 	st->i += i_table[s];
-	clip(&st->i, 0, 88);
+	clamp(&st->i, 0, 88);
 	st->ss = ss_table[st->i];
 	return s;
 }
 
-int16_t adpcm_decode(uint8_t s, STATE *st)
+int16_t adpcm_decode_sample(uint8_t s, STATE *st)
 {
 	int pcm=0; /* 16 Bit signed PCM to return */
-	int diff=0;
-#ifdef ALT
-	diff = ((s & 0x7) * st->ss >> 2) + ((s & 0x7) * st->ss >> 3);
-#else
-	if(s & (1<<2))	diff = st->ss;
-	if(s & (1<<1))	diff += st->ss >> 1;
-	if(s & 1)	diff += st->ss >> 2;
-	diff += st->ss >> 3;
-#endif
-	if(s & 0x8)	/* Test for sign bit */
-		diff = -diff;
-	pcm += diff;
-	clip(&pcm, -32768, 32767);
+	pcm = st->ps += diffcalc(s, st->ss);	/* Use ps to store current sample */
+	clamp(&pcm, -32768, 32767);
 	st->i += i_table[s];
-	clip(&st->i, 0, 88);
+	clamp(&st->i, 0, 88);
 	st->ss = ss_table[st->i];
 	return (int16_t)pcm;
 }
