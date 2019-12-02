@@ -66,9 +66,7 @@ static void clamp(int *value, int min, int max)
 static int diffcalc(uint8_t s, int ss)
 {
 	int diff=0;
-#ifdef ALT
 	int smp = s & 0x7; /* Strip sign */
-#endif
 
 	/*
 	Calculate the difference, the original IMA document, "Recommended Practices
@@ -88,14 +86,7 @@ static int diffcalc(uint8_t s, int ss)
 	
 	Sometimes, document lies......
 	*/
-#ifdef ALT
 	diff = smp * ss >> 2;
-#else
-	if(s & (1<<2))	diff = ss;
-	if(s & (1<<1))	diff += ss >> 1;
-	if(s & 1)	diff += ss >> 2;
-	diff += ss >> 3;
-#endif
 	if(s & 0x8)	/* Is negative */
 		return -diff;
 	else
@@ -107,32 +98,13 @@ uint8_t adpcm_encode_sample(int16_t in, STATE *st)
 	uint8_t s=0;	/* The 4 Bit ADPCM sample to return */
 	int diff = in - st->ps;
 
-#ifndef ALT
-	int i=0;
-	uint8_t mask=4;
-	int temp = st->ss;
-#endif
-
 	if(diff < 0)
 		s = 1<<3;
 	diff = abs(diff);
 	/* Calculate the sample:
 		Sample = 4 * Difference / StepSize
 	*/
-#ifdef ALT
 	s |= ((diff<<2) / st->ss) & 0x7;
-#else
-	for(i=0; i < 3; i++)
-	{
-		if(diff >= temp)
-		{
-			s |= mask;
-			diff -= temp;
-		}
-		temp >>= 1;
-		mask >>= 1;
-	}
-#endif
 	st->ps += diffcalc(s, st->ss);	/* Update Predicted Sample */
 	clamp(&st->ps, -32768, 32767);
 	st->i += i_table[s];
