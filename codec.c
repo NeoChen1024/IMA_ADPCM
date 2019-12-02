@@ -94,6 +94,7 @@ int main(int argc, char **argv)
 					fwrite(&adsmp, sizeof(adsmp), 1, outfile);
 				}
 			}
+			break;
 		default:
 			panic("Not Implemented");
 	}
